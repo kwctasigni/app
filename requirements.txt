@@ -5,3 +5,4 @@ yfinance==0.2.65
 joblib==1.5.2
 plotly==6.3.0
 matplotlib==3.10.5
+scikit-learn==1.7.1
