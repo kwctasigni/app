@@ -1,0 +1,7 @@
+streamlit==1.49.0
+pandas==2.3.2
+numpy==2.3.2
+yfinance==0.2.65
+joblib==1.5.2
+plotly==6.3.0
+matplotlib==3.10.5
