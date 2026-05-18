@@ -1,4 +1,6 @@
 # --- IMPORTS ---
+import traceback
+
 import streamlit as st
 
 # --- PAGE SETUP ---
@@ -34,7 +36,16 @@ st.sidebar.markdown("By [Alxkon](https://www.linkedin.com/in/konstantinos-alexio
 
 
 # --- RUN NAVIGATION ---
-pg.run()
+try:
+    pg.run()
+except Exception as exc:
+    st.error("This page could not finish loading.")
+    st.info(
+        "The app hit an unexpected data or calculation issue. "
+        "Please refresh in a few minutes; if the market data provider is rate-limited, it usually resolves after retrying."
+    )
+    with st.expander("Technical details"):
+        st.code("".join(traceback.format_exception(type(exc), exc, exc.__traceback__)))
 
 
 

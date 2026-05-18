@@ -111,10 +111,15 @@ alloc = C_AllocationStrategy(main_dataset=filtered_data, feature_cols=feature_co
 alloc.model = model
 alloc.scaler = scaler
 
-# ------------------- 
+# -------------------
 # Generate trading signals
 # -------------------
 signals_df = alloc.F_GenerateSignals(filtered_data)
+if signals_df.empty:
+    st.warning(
+        "No trading signal was found for the available market data. "
+        "Suggested allocation is shown as 0% until a valid signal appears."
+    )
 
 # Ensure engineered features exist
 for f in ["sum_exec_ret_last7", "signals_last7d"]:

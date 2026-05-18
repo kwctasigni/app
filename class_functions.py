@@ -37,7 +37,10 @@ class C_Preprocessing:
             self.tickers,
             start=self.start_date,
             end=self.end_date,
-            interval='1d'
+            interval='1d',
+            auto_adjust=False,
+            progress=False,
+            threads=False,
         )[['Open', 'High', 'Low', 'Close','Volume']]
 
         df = pd.DataFrame({
@@ -270,6 +273,12 @@ class C_AllocationStrategy:
         if self.model is None or self.scaler is None:
             raise ValueError("No model available. Train or load a model first.")
 
+        if new_df.empty:
+            new_df = new_df.copy()
+            new_df['y_proba'] = pd.Series(dtype='float64')
+            new_df['allocation_pct'] = pd.Series(dtype='float64')
+            return new_df
+
         X_new = new_df[self.feature_cols]
         X_new_scaled = self.scaler.transform(X_new)
         new_df = new_df.copy()
@@ -365,6 +374,8 @@ class C_AllocationStrategy:
 
         # --- Signal generation ---
         signals_df = self.F_GenerateSignals(df)
+        if signals_df.empty:
+            return self.F_CashBacktest(signals_df, initial_portfolio)
         
         # --- Lookback features ---
         results_sum, results_count = [], []
@@ -420,7 +431,27 @@ class C_AllocationStrategy:
         signals_df : pd.DataFrame
             Signals with feature values and lookback columns.
         """
-        
+        signal_columns = [
+            "signal_idx",
+            "signal_date",
+            "entry_idx",
+            "entry_date",
+            "entry_open",
+            "entry_exec_ret",
+        ]
+        required_columns = [
+            "Date",
+            "VIX_Z_60",
+            "SP500_trend_5",
+            "VIX_Z_60_roc1",
+            "VIX_Z_60_roc3",
+            "SVXY_Open",
+            "SVXY_exec_ret",
+        ]
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            raise ValueError(f"Missing required market data columns: {', '.join(missing_columns)}")
+
         signals = []
         for i in range(len(df) - 1):
             row = df.iloc[i]
@@ -443,7 +474,9 @@ class C_AllocationStrategy:
 
                 signals.append(signal)
 
-        signals_df = pd.DataFrame(signals).sort_values("signal_date").reset_index(drop=True)
+        columns = list(dict.fromkeys(signal_columns + list(self.feature_cols)))
+        signals_df = pd.DataFrame(signals, columns=columns)
+        signals_df = signals_df.sort_values("signal_date").reset_index(drop=True)
 
 
         return signals_df
@@ -550,6 +583,10 @@ def F_LoadAllData(model_path: str):
     prep = C_Preprocessing(start_date="2020-01-01", vix_window=60)
     df = prep.F_ComputeFeatures()
     filtered = df[df['Date'] >= pd.Timestamp("2020-01-01")].copy().reset_index(drop=True)
+    if filtered.empty:
+        raise ValueError(
+            "No usable market data was loaded. Yahoo Finance may be rate-limited or temporarily unavailable."
+        )
 
     saved = joblib.load(model_path)
     model = saved['model']

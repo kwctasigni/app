@@ -125,7 +125,10 @@ with st.spinner("Running strategy backtest..."):
     )
 
 if backtested_trades is None or backtested_trades.empty:
-    st.warning("No trades executed. Try adjusting parameters.")
+    st.warning(
+        "No trades were generated for the available market data. "
+        "This can happen when the signal rules are not triggered or the data provider returns incomplete data."
+    )
     st.stop()
 
 # ------------------- 
