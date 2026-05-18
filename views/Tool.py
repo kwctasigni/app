@@ -121,17 +121,8 @@ if signals_df.empty:
         "Suggested allocation is shown as 0% until a valid signal appears."
     )
 
-# Ensure engineered features exist
-for f in ["sum_exec_ret_last7", "signals_last7d"]:
-    if f not in signals_df.columns:
-        results_sum, results_count = [], []
-        for i, row in signals_df.iterrows():
-            sig = row["signal_date"]
-            mask = (signals_df["signal_date"] >= (sig - pd.Timedelta(days=7))) & (signals_df["signal_date"] < sig)
-            results_sum.append(signals_df.loc[mask, "entry_exec_ret"].sum(skipna=True))
-            results_count.append(mask.sum())
-        signals_df["sum_exec_ret_last7"] = results_sum
-        signals_df["signals_last7d"] = results_count
+# Ensure engineered features are calculated, not just present as empty columns.
+signals_df = alloc.F_AddLookbackFeatures(signals_df, lookback_days=7)
 
 # Ensure all feature columns exist
 for f in feature_cols:

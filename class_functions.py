@@ -378,15 +378,7 @@ class C_AllocationStrategy:
             return self.F_CashBacktest(signals_df, initial_portfolio)
         
         # --- Lookback features ---
-        results_sum, results_count = [], []
-        for i, row in signals_df.iterrows():
-            sig = row["signal_date"]
-            mask = (signals_df["signal_date"] >= (sig - pd.Timedelta(days=lookback_days))) & (signals_df["signal_date"] < sig)
-            results_sum.append(signals_df.loc[mask, "entry_exec_ret"].sum(skipna=True))
-            results_count.append(mask.sum())
-
-        signals_df["sum_exec_ret_last7"] = results_sum
-        signals_df["signals_last7d"] = results_count
+        signals_df = self.F_AddLookbackFeatures(signals_df, lookback_days=lookback_days)
 
         if model_path is not None:
             self.F_LoadTrainedClassification(model_path)
@@ -479,6 +471,35 @@ class C_AllocationStrategy:
         signals_df = signals_df.sort_values("signal_date").reset_index(drop=True)
 
 
+        return signals_df
+
+    def F_AddLookbackFeatures(self, signals_df, lookback_days=7):
+        """
+        Add short-memory signal features required by the allocation model.
+        """
+        signals_df = signals_df.copy()
+        if signals_df.empty:
+            signals_df["sum_exec_ret_last7"] = pd.Series(dtype="float64")
+            signals_df["signals_last7d"] = pd.Series(dtype="int64")
+            return signals_df
+
+        if "signal_date" not in signals_df.columns or "entry_exec_ret" not in signals_df.columns:
+            raise ValueError("Cannot compute lookback features without signal_date and entry_exec_ret columns.")
+
+        signals_df["signal_date"] = pd.to_datetime(signals_df["signal_date"])
+        results_sum, results_count = [], []
+
+        for _, row in signals_df.iterrows():
+            sig = row["signal_date"]
+            mask = (
+                (signals_df["signal_date"] >= (sig - pd.Timedelta(days=lookback_days)))
+                & (signals_df["signal_date"] < sig)
+            )
+            results_sum.append(signals_df.loc[mask, "entry_exec_ret"].sum(skipna=True))
+            results_count.append(int(mask.sum()))
+
+        signals_df["sum_exec_ret_last7"] = results_sum
+        signals_df["signals_last7d"] = results_count
         return signals_df
 
     def F_ExitStrategy(self, df, signals_df):
